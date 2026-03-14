@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Infinite Zoom Drawing</string>
+
+    <!-- Actions -->
+    <string name="new_drawing">New</string>
+    <string name="open_drawing">Open</string>
+    <string name="save_drawing">Save</string>
+    <string name="undo">Undo</string>
+    <string name="redo">Redo</string>
+    <string name="clear_canvas">Clear</string>
+
+    <!-- Brush types -->
+    <string name="brush_pen">Pen</string>
+    <string name="brush_marker">Marker</string>
+    <string name="brush_soft">Brush</string>
+    <string name="brush_eraser">Eraser</string>
+
+    <!-- Brush size -->
+    <string name="brush_size_label">Size: %d</string>
+
+    <!-- Dialogs -->
+    <string name="new_drawing_confirm">Start a new drawing? All unsaved changes will be lost.</string>
+    <string name="clear_canvas_confirm">Clear the canvas? This cannot be undone.</string>
+    <string name="yes">Yes</string>
+    <string name="cancel">Cancel</string>
+
+    <!-- Messages -->
+    <string name="drawing_saved">Drawing saved: %s</string>
+    <string name="save_failed">Failed to save drawing.</string>
+    <string name="open_failed">Failed to open image.</string>
+    <string name="permission_granted">Permission granted. Please try again.</string>
+    <string name="permission_denied">Permission denied. Cannot access storage.</string>
+</resources>
