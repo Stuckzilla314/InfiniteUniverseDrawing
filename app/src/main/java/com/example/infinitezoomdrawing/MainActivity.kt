@@ -1,0 +1,269 @@
+package com.example.infinitezoomdrawing
+
+import android.Manifest
+import android.app.Activity
+import android.app.AlertDialog
+import android.content.ContentValues
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
+import android.graphics.Color
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.os.Environment
+import android.provider.MediaStore
+import android.widget.SeekBar
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import com.example.infinitezoomdrawing.databinding.ActivityMainBinding
+import java.io.IOException
+import java.io.OutputStream
+
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivityMainBinding
+
+    private val requestPermissionCode = 1001
+    private val requestOpenImageCode = 1002
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        setSupportActionBar(binding.toolbar)
+
+        setupBrushSizeSeekBar()
+        setupColorPalette()
+        setupBrushTypeButtons()
+        setupActionButtons()
+    }
+
+    // ── Brush size ────────────────────────────────────────────────────────────
+
+    private fun setupBrushSizeSeekBar() {
+        // SeekBar range is 0..79; add 1 for actual brush size (1..80)
+        binding.seekBarBrushSize.progress = 11
+        binding.tvBrushSizeLabel.text = getString(R.string.brush_size_label, 12)
+        binding.seekBarBrushSize.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                val size = (progress + 1).toFloat()
+                binding.drawingView.brushSize = size
+                binding.tvBrushSizeLabel.text = getString(R.string.brush_size_label, progress + 1)
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+    }
+
+    // ── Color palette ─────────────────────────────────────────────────────────
+
+    private val paletteColors = listOf(
+        Color.BLACK, Color.DKGRAY, Color.GRAY, Color.WHITE,
+        Color.RED, Color.rgb(255, 128, 0), Color.YELLOW, Color.GREEN,
+        Color.CYAN, Color.BLUE, Color.rgb(128, 0, 255), Color.MAGENTA
+    )
+
+    private fun setupColorPalette() {
+        val paletteViews = listOf(
+            binding.colorSwatch0, binding.colorSwatch1, binding.colorSwatch2,
+            binding.colorSwatch3, binding.colorSwatch4, binding.colorSwatch5,
+            binding.colorSwatch6, binding.colorSwatch7, binding.colorSwatch8,
+            binding.colorSwatch9, binding.colorSwatch10, binding.colorSwatch11
+        )
+
+        paletteViews.forEachIndexed { index, view ->
+            view.setBackgroundColor(paletteColors[index])
+            view.setOnClickListener { selectColor(paletteColors[index]) }
+        }
+
+        // Select black by default
+        selectColor(Color.BLACK)
+    }
+
+    private fun selectColor(color: Int) {
+        binding.drawingView.brushColor = color
+        binding.viewSelectedColor.setBackgroundColor(color)
+    }
+
+    // ── Brush type buttons ────────────────────────────────────────────────────
+
+    private fun setupBrushTypeButtons() {
+        val buttons = mapOf(
+            binding.btnBrushPen to BrushType.PEN,
+            binding.btnBrushMarker to BrushType.MARKER,
+            binding.btnBrushSoft to BrushType.BRUSH,
+            binding.btnBrushEraser to BrushType.ERASER
+        )
+
+        fun updateSelection(selected: BrushType) {
+            buttons.forEach { (btn, type) ->
+                btn.isSelected = (type == selected)
+                btn.alpha = if (type == selected) 1f else 0.5f
+            }
+        }
+
+        buttons.forEach { (btn, type) ->
+            btn.setOnClickListener {
+                binding.drawingView.brushType = type
+                updateSelection(type)
+            }
+        }
+
+        // Default selection
+        updateSelection(BrushType.PEN)
+    }
+
+    // ── Action buttons (new / save / open / undo / redo / clear) ─────────────
+
+    private fun setupActionButtons() {
+        binding.btnNew.setOnClickListener { confirmNewDrawing() }
+        binding.btnSave.setOnClickListener { saveDrawing() }
+        binding.btnOpen.setOnClickListener { requestOpenDrawing() }
+        binding.btnUndo.setOnClickListener {
+            binding.drawingView.undo()
+            Toast.makeText(this, R.string.undo, Toast.LENGTH_SHORT).show()
+        }
+        binding.btnRedo.setOnClickListener {
+            binding.drawingView.redo()
+            Toast.makeText(this, R.string.redo, Toast.LENGTH_SHORT).show()
+        }
+        binding.btnClear.setOnClickListener { confirmClearCanvas() }
+    }
+
+    private fun confirmNewDrawing() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.new_drawing)
+            .setMessage(R.string.new_drawing_confirm)
+            .setPositiveButton(R.string.yes) { _, _ -> binding.drawingView.clearCanvas() }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun confirmClearCanvas() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.clear_canvas)
+            .setMessage(R.string.clear_canvas_confirm)
+            .setPositiveButton(R.string.yes) { _, _ -> binding.drawingView.clearCanvas() }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    // ── Save ──────────────────────────────────────────────────────────────────
+
+    private fun saveDrawing() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                ActivityCompat.requestPermissions(
+                    this, arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), requestPermissionCode
+                )
+                return
+            }
+        }
+        saveToGallery()
+    }
+
+    private fun saveToGallery() {
+        val bitmap = binding.drawingView.exportBitmap()
+        val filename = "drawing_${System.currentTimeMillis()}.png"
+
+        val outputStream: OutputStream?
+        val imageUri: Uri?
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val contentValues = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+                put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/InfiniteZoomDrawing")
+            }
+            imageUri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+            outputStream = imageUri?.let { contentResolver.openOutputStream(it) }
+        } else {
+            @Suppress("DEPRECATION")
+            val imagesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+            val appDir = java.io.File(imagesDir, "InfiniteZoomDrawing").also { it.mkdirs() }
+            val file = java.io.File(appDir, filename)
+            imageUri = Uri.fromFile(file)
+            outputStream = file.outputStream()
+        }
+
+        try {
+            outputStream?.use { stream ->
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)
+            }
+            Toast.makeText(this, getString(R.string.drawing_saved, filename), Toast.LENGTH_LONG).show()
+        } catch (e: IOException) {
+            Toast.makeText(this, getString(R.string.save_failed), Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // ── Open ──────────────────────────────────────────────────────────────────
+
+    private fun requestOpenDrawing() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                ActivityCompat.requestPermissions(
+                    this, arrayOf(Manifest.permission.READ_MEDIA_IMAGES), requestPermissionCode
+                )
+                return
+            }
+        } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                ActivityCompat.requestPermissions(
+                    this, arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), requestPermissionCode
+                )
+                return
+            }
+        }
+        launchImagePicker()
+    }
+
+    private fun launchImagePicker() {
+        val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI).apply {
+            type = "image/*"
+        }
+        startActivityForResult(intent, requestOpenImageCode)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == requestOpenImageCode && resultCode == Activity.RESULT_OK) {
+            val uri = data?.data ?: return
+            try {
+                val inputStream = contentResolver.openInputStream(uri) ?: return
+                val bitmap = BitmapFactory.decodeStream(inputStream)
+                inputStream.close()
+                if (bitmap != null) {
+                    binding.drawingView.loadBitmap(bitmap)
+                } else {
+                    Toast.makeText(this, R.string.open_failed, Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: IOException) {
+                Toast.makeText(this, R.string.open_failed, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == requestPermissionCode) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Retry the action that required permission
+                Toast.makeText(this, R.string.permission_granted, Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, R.string.permission_denied, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+}

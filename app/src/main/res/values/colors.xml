@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="background">#EFEFEF</color>
+    <color name="toolbar_bg">#1976D2</color>
+    <color name="panel_bg">#F5F5F5</color>
+    <color name="button_text">#333333</color>
+    <color name="text_primary">#333333</color>
+    <color name="color_error">#D32F2F</color>
+    <color name="color_swatch_border">#BDBDBD</color>
+</resources>
