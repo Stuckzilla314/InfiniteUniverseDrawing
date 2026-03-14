@@ -53,11 +53,17 @@ jobs:
           name: android-release-apk
           path: release-artifact
 
+      - name: Prepare release metadata
+        id: release_metadata
+        run: |
+          echo "tag=main-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "name=Main build ${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: main-${{ github.sha }}
-          name: Main build ${{ github.sha }}
+          tag_name: ${{ steps.release_metadata.outputs.tag }}
+          name: ${{ steps.release_metadata.outputs.name }}
           target_commitish: ${{ github.sha }}
           prerelease: true
           generate_release_notes: true
