@@ -324,6 +324,7 @@ class DrawingViewViewportGestureTest {
                 val focusScreenY = drawingView.height / 2f
                 val focusCanvasX = 12.0
                 val focusCanvasY = 12.0
+                val strokeHalfWidth = 220f
 
                 fun setAnchoredViewport(scale: Double) {
                     drawingView.setViewportTransform(
@@ -339,18 +340,18 @@ class DrawingViewViewportGestureTest {
                 drawingView.brushColor = Color.GREEN
                 dispatchStroke(
                     drawingView,
-                    focusScreenX - 220f,
+                    focusScreenX - strokeHalfWidth,
                     focusScreenY,
-                    focusScreenX + 220f,
+                    focusScreenX + strokeHalfWidth,
                     focusScreenY
                 )
 
                 drawingView.brushColor = Color.BLACK
                 dispatchStroke(
                     drawingView,
-                    focusScreenX - 220f,
+                    focusScreenX - strokeHalfWidth,
                     focusScreenY,
-                    focusScreenX + 220f,
+                    focusScreenX + strokeHalfWidth,
                     focusScreenY
                 )
 
@@ -360,6 +361,8 @@ class DrawingViewViewportGestureTest {
 
                 assertTrue(drawingView.requiresCompositingLayerForTesting())
 
+                // Probe adjacent scales around the 64x normalization boundary where rebasing occurs,
+                // plus a couple of larger post-rebase scales to catch transient top-color flicker.
                 listOf(60.0, 63.0, 64.0, 65.0, 66.0, 96.0, 128.0).forEach { scale ->
                     setAnchoredViewport(scale)
                     val bitmap = drawingView.exportBitmap()
@@ -399,6 +402,8 @@ class DrawingViewViewportGestureTest {
                 drawingView.brushColor = Color.BLUE
                 dispatchStroke(drawingView, 0f, 180f, 180f, 180f)
 
+                // Check repeated zoom steps around the 32x/64x normalization boundaries while the
+                // overlapping strokes stay pinned to the viewport edge where flicker is easiest to spot.
                 listOf(8.0, 24.0, 31.0, 32.0, 33.0, 63.0, 64.0, 65.0).forEach { scale ->
                     drawingView.setViewportTransform(scale = scale, offsetX = 0.0, offsetY = 0.0)
                     val bitmap = drawingView.exportBitmap()
