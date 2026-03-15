@@ -136,19 +136,11 @@ class DrawingView @JvmOverloads constructor(
     }
 
     override fun onDraw(canvas: Canvas) {
-        canvas.drawColor(Color.WHITE)
-        drawInViewport(canvas) { viewportCanvas ->
-            loadedBitmap?.let { bitmap ->
-                viewportCanvas.save()
-                viewportCanvas.translate(loadedBitmapX, loadedBitmapY)
-                viewportCanvas.scale(loadedBitmapScale, loadedBitmapScale)
-                viewportCanvas.drawBitmap(bitmap, 0f, 0f, null)
-                viewportCanvas.restore()
-            }
-        }
+        drawCanvasBackdrop(canvas)
 
         if (requiresCompositingLayer()) {
             val layer = canvas.saveLayer(null, null)
+            drawCanvasBackdrop(canvas)
             drawStrokes(canvas)
             canvas.restoreToCount(layer)
         } else {
@@ -488,6 +480,19 @@ class DrawingView @JvmOverloads constructor(
         canvas.concat(viewportMatrix)
         drawBlock(canvas)
         canvas.restore()
+    }
+
+    private fun drawCanvasBackdrop(canvas: Canvas) {
+        canvas.drawColor(Color.WHITE)
+        drawInViewport(canvas) { viewportCanvas ->
+            loadedBitmap?.let { bitmap ->
+                viewportCanvas.save()
+                viewportCanvas.translate(loadedBitmapX, loadedBitmapY)
+                viewportCanvas.scale(loadedBitmapScale, loadedBitmapScale)
+                viewportCanvas.drawBitmap(bitmap, 0f, 0f, null)
+                viewportCanvas.restore()
+            }
+        }
     }
 
     private fun drawStrokes(canvas: Canvas) {
