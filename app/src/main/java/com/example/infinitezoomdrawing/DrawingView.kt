@@ -137,11 +137,15 @@ class DrawingView @JvmOverloads constructor(
             canvas.drawBitmap(it, 0f, 0f, null)
             canvas.restore()
         }
+        canvas.restore()
+
         val layer = canvas.saveLayer(null, null)
+        canvas.save()
+        canvas.concat(viewportMatrix)
         for (stroke in strokes) canvas.drawPath(stroke.path, stroke.paint)
         canvas.drawPath(currentPath, currentPaint)
-        canvas.restoreToCount(layer)
         canvas.restore()
+        canvas.restoreToCount(layer)
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {

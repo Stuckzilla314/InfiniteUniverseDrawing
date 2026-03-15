@@ -120,6 +120,38 @@ class DrawingViewViewportGestureTest {
         }
     }
 
+    @Test
+    fun zoomChanges_keepStrokeVisibleAtViewportEdge() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val drawingView = activity.findViewById<DrawingView>(R.id.drawingView)
+
+                assertTrue("DrawingView should be laid out before exporting", drawingView.width > 0)
+                assertTrue("DrawingView should be laid out before exporting", drawingView.height > 0)
+
+                drawingView.setViewportTransform(scale = 8.0, offsetX = 0.0, offsetY = 0.0)
+                drawingView.brushType = BrushType.PEN
+                drawingView.brushColor = Color.BLACK
+                drawingView.brushSize = 32f
+
+                dispatchStroke(drawingView, 0f, 180f, 160f, 180f)
+
+                val initialBitmap = drawingView.exportBitmap()
+                assertEquals(Color.BLACK, initialBitmap.getPixel(0, 180))
+
+                drawingView.setViewportTransform(scale = 24.0, offsetX = 0.0, offsetY = 0.0)
+                val zoomedInBitmap = drawingView.exportBitmap()
+                assertEquals(Color.BLACK, zoomedInBitmap.getPixel(0, 180))
+                assertEquals(Color.BLACK, zoomedInBitmap.getPixel(40, 180))
+
+                drawingView.setViewportTransform(scale = 4.0, offsetX = 0.0, offsetY = 0.0)
+                val zoomedOutBitmap = drawingView.exportBitmap()
+                assertEquals(Color.BLACK, zoomedOutBitmap.getPixel(0, 180))
+                assertEquals(Color.BLACK, zoomedOutBitmap.getPixel(20, 180))
+            }
+        }
+    }
+
     private fun dispatchStroke(
         drawingView: DrawingView,
         startX: Float,
