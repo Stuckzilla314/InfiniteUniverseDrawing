@@ -1,10 +1,13 @@
 package com.example.infinitezoomdrawing
 
 import android.widget.ImageButton
+import android.widget.TextView
+import android.view.View
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -42,6 +45,30 @@ class MainActivityLaunchTest {
                     assertNotNull(button)
                     assertEquals(activity.getString(descriptionId), button.contentDescription)
                 }
+            }
+        }
+    }
+
+    @Test
+    fun launchMainActivity_startsWithCompactToolsPanelAndCanExpand() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val toolsContent = activity.findViewById<View>(R.id.layoutToolsContent)
+                val toggleButton = activity.findViewById<TextView>(R.id.btnToggleTools)
+                val summary = activity.findViewById<TextView>(R.id.tvToolSummary)
+
+                assertNotNull(toolsContent)
+                assertNotNull(toggleButton)
+                assertNotNull(summary)
+                assertEquals(View.GONE, toolsContent.visibility)
+                assertEquals(activity.getString(R.string.show_tools), toggleButton.text.toString())
+                assertTrue(summary.text.contains(activity.getString(R.string.brush_pen)))
+                assertTrue(summary.text.contains(activity.getString(R.string.brush_size_label, 12)))
+
+                toggleButton.performClick()
+
+                assertEquals(View.VISIBLE, toolsContent.visibility)
+                assertEquals(activity.getString(R.string.hide_tools), toggleButton.text.toString())
             }
         }
     }
