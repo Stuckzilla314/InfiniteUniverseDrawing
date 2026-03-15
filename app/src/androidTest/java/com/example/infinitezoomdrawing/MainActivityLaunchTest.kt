@@ -9,11 +9,16 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class MainActivityLaunchTest {
+
+    companion object {
+        private const val EPSILON = 1e-6
+    }
 
     @Test
     fun launchMainActivity_displaysDrawingScreen() {
@@ -70,6 +75,21 @@ class MainActivityLaunchTest {
 
                 assertEquals(View.VISIBLE, toolsContent.visibility)
                 assertEquals(activity.getString(R.string.hide_tools), toggleButton.text.toString())
+            }
+        }
+    }
+
+    @Test
+    fun launchMainActivity_initializesDrawingViewViewportDefaults() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val drawingView = activity.findViewById<DrawingView>(R.id.drawingView)
+
+                assertNotNull(drawingView)
+                assertEquals(1.0, drawingView.getViewportScale(), EPSILON)
+                assertEquals(0.0, drawingView.getViewportOffsetX(), EPSILON)
+                assertEquals(0.0, drawingView.getViewportOffsetY(), EPSILON)
+                assertFalse(drawingView.requiresCompositingLayerForTesting())
             }
         }
     }
