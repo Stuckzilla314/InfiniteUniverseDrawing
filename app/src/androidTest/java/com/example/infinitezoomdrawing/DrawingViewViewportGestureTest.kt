@@ -459,6 +459,105 @@ class DrawingViewViewportGestureTest {
     }
 
     @Test
+    fun nestedBlackWhiteBlackDeepZoom_keepsAllStrokeColorsVisible() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val drawingView = activity.findViewById<DrawingView>(R.id.drawingView)
+                val focusScreenX = drawingView.width / 2f
+                val focusScreenY = drawingView.height / 2f
+                val focusCanvasX = 12.0
+                val focusCanvasY = 12.0
+                val brushSize = 80f
+                val strokeHalfLength = 220f
+                val oldestStrokeScale = 8.0
+                val middleStrokeScale = 64.0
+                val newestStrokeScale = 512.0
+
+                fun setAnchoredViewport(scale: Double) {
+                    drawingView.setViewportTransform(
+                        scale = scale,
+                        offsetX = focusScreenX - (focusCanvasX * scale),
+                        offsetY = focusScreenY - (focusCanvasY * scale)
+                    )
+                }
+
+                fun halfScreenStrokeWidth(currentScale: Double, drawScale: Double): Double {
+                    return (brushSize * currentScale / drawScale) / 2.0
+                }
+
+                setAnchoredViewport(scale = oldestStrokeScale)
+                drawingView.brushType = BrushType.PEN
+                drawingView.brushSize = brushSize
+                drawingView.brushColor = Color.BLACK
+                dispatchStroke(
+                    drawingView,
+                    focusScreenX - strokeHalfLength,
+                    focusScreenY,
+                    focusScreenX + strokeHalfLength,
+                    focusScreenY
+                )
+
+                setAnchoredViewport(scale = middleStrokeScale)
+                drawingView.brushColor = Color.WHITE
+                dispatchStroke(
+                    drawingView,
+                    focusScreenX - strokeHalfLength,
+                    focusScreenY,
+                    focusScreenX + strokeHalfLength,
+                    focusScreenY
+                )
+
+                setAnchoredViewport(scale = newestStrokeScale)
+                drawingView.brushColor = Color.BLACK
+                dispatchStroke(
+                    drawingView,
+                    focusScreenX - strokeHalfLength,
+                    focusScreenY,
+                    focusScreenX + strokeHalfLength,
+                    focusScreenY
+                )
+
+                listOf(256.0, 512.0, 768.0, 1_024.0).forEach { scale ->
+                    setAnchoredViewport(scale)
+
+                    val newestHalfWidth = halfScreenStrokeWidth(scale, newestStrokeScale)
+                    val middleHalfWidth = halfScreenStrokeWidth(scale, middleStrokeScale)
+                    val oldestHalfWidth = halfScreenStrokeWidth(scale, oldestStrokeScale)
+                    val maxVisibleOffset = (focusScreenY - 24f).toDouble()
+
+                    val whiteOffset = ((newestHalfWidth + middleHalfWidth) / 2.0)
+                        .coerceAtMost(maxVisibleOffset)
+                        .toInt()
+                    val outerBlackOffset = ((middleHalfWidth + minOf(oldestHalfWidth, maxVisibleOffset)) / 2.0)
+                        .coerceAtMost(maxVisibleOffset)
+                        .toInt()
+
+                    val bitmap = drawingView.exportBitmap()
+                    try {
+                        assertEquals(
+                            "Expected newest black stroke to stay visible at scale=$scale",
+                            Color.BLACK,
+                            bitmap.getPixel(focusScreenX.toInt(), focusScreenY.toInt())
+                        )
+                        assertEquals(
+                            "Expected middle white stroke to stay visible at scale=$scale",
+                            Color.WHITE,
+                            bitmap.getPixel(focusScreenX.toInt(), focusScreenY.toInt() - whiteOffset)
+                        )
+                        assertEquals(
+                            "Expected oldest black stroke to stay visible at scale=$scale",
+                            Color.BLACK,
+                            bitmap.getPixel(focusScreenX.toInt(), focusScreenY.toInt() - outerBlackOffset)
+                        )
+                    } finally {
+                        bitmap.recycle()
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
     fun deepZoomEraser_preservesWhiteBackground() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->

@@ -554,14 +554,28 @@ class DrawingView @JvmOverloads constructor(
     private fun drawStrokes(canvas: Canvas, visibleCanvasRect: RectF) {
         drawInViewport(canvas) { viewportCanvas ->
             for (stroke in strokes) {
-                if (pathIntersectsVisibleRect(stroke.path, stroke.paint, visibleCanvasRect)) {
+                if (
+                    shouldAlwaysDrawStroke(stroke.paint) ||
+                    pathIntersectsVisibleRect(stroke.path, stroke.paint, visibleCanvasRect)
+                ) {
                     viewportCanvas.drawPath(stroke.path, stroke.paint)
                 }
             }
-            if (pathIntersectsVisibleRect(currentPath, currentPaint, visibleCanvasRect)) {
+            if (
+                shouldAlwaysDrawStroke(currentPaint) ||
+                pathIntersectsVisibleRect(currentPath, currentPaint, visibleCanvasRect)
+            ) {
                 viewportCanvas.drawPath(currentPath, currentPaint)
             }
         }
+    }
+
+    private fun shouldAlwaysDrawStroke(paint: Paint): Boolean {
+        val projectedStrokeWidth = paint.strokeWidth.toDouble() * viewportScale
+        if (!projectedStrokeWidth.isFinite()) return false
+
+        val viewportMaxDimension = maxOf(width, height).toDouble()
+        return viewportMaxDimension > 0.0 && projectedStrokeWidth >= viewportMaxDimension
     }
 
     private fun requiresCompositingLayer(): Boolean {
