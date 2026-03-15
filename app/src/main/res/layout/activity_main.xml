@@ -19,7 +19,19 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:title="@string/app_name"
-        app:titleTextColor="@android:color/white" />
+        app:titleTextColor="@android:color/white">
+
+        <TextView
+            android:id="@+id/tvZoomMeter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end|center_vertical"
+            android:layout_marginEnd="16dp"
+            android:textColor="@android:color/white"
+            android:textSize="12sp"
+            tools:text="Z 0.0" />
+
+    </androidx.appcompat.widget.Toolbar>
 
     <!-- Drawing Canvas -->
     <com.example.infinitezoomdrawing.DrawingView

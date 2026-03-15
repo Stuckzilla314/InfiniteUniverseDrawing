@@ -22,11 +22,18 @@ import androidx.core.content.ContextCompat
 import com.example.infinitezoomdrawing.databinding.ActivityMainBinding
 import java.io.IOException
 import java.io.OutputStream
+import kotlin.math.ln
 
 class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val DEFAULT_TOOLS_EXPANDED = false
+        private const val LOG_BASE_TWO = 0.6931471805599453
+
+        internal fun calculateZoomMeterValue(scale: Double): Double {
+            if (!scale.isFinite() || scale <= 0.0) return 0.0
+            return ln(scale) / LOG_BASE_TWO
+        }
     }
 
     private lateinit var binding: ActivityMainBinding
@@ -42,12 +49,25 @@ class MainActivity : AppCompatActivity() {
 
         setSupportActionBar(binding.toolbar)
 
+        setupZoomMeter()
         setupToolPanelToggle()
         setupBrushSizeSeekBar()
         setupColorPalette()
         setupBrushTypeButtons()
         setupActionButtons()
         setToolsExpanded(DEFAULT_TOOLS_EXPANDED)
+    }
+
+    private fun setupZoomMeter() {
+        binding.drawingView.onViewportScaleChanged = { scale ->
+            updateZoomMeter(scale)
+        }
+    }
+
+    private fun updateZoomMeter(scale: Double) {
+        val zoomMeterValue = calculateZoomMeterValue(scale)
+        binding.tvZoomMeter.text = getString(R.string.zoom_meter_value, zoomMeterValue)
+        binding.tvZoomMeter.contentDescription = getString(R.string.zoom_meter_accessibility, zoomMeterValue)
     }
 
     // ── Brush size ────────────────────────────────────────────────────────────

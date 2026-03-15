@@ -19,6 +19,8 @@
     <!-- Brush size -->
     <string name="brush_size_label">Size: %d</string>
     <string name="tool_summary">%1$s · %2$s</string>
+    <string name="zoom_meter_value">Z %1$.1f</string>
+    <string name="zoom_meter_accessibility">Zoom meter %1$.1f</string>
     <string name="show_tools">Show tools</string>
     <string name="hide_tools">Hide tools</string>
     <string name="color_palette">Color palette</string>

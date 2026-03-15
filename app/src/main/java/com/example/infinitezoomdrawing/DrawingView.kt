@@ -50,6 +50,11 @@ class DrawingView @JvmOverloads constructor(
     private var viewportScale = 1.0
     private var viewportOffsetX = 0.0
     private var viewportOffsetY = 0.0
+    var onViewportScaleChanged: ((Double) -> Unit)? = null
+        set(value) {
+            field = value
+            value?.invoke(viewportScale)
+        }
 
     private var currentPath = Path()
     private var currentPaintViewportScale = viewportScale
@@ -199,6 +204,7 @@ class DrawingView @JvmOverloads constructor(
             viewportOffsetY = offsetY
             updateViewportMatrix()
             normalizeViewportScale(width / 2f, height / 2f)
+            onViewportScaleChanged?.invoke(viewportScale)
             invalidate()
         }
     }
@@ -410,6 +416,7 @@ class DrawingView @JvmOverloads constructor(
             updateViewportMatrix()
             lastFocusX = detector.focusX
             lastFocusY = detector.focusY
+            onViewportScaleChanged?.invoke(viewportScale)
             invalidate()
             return true
         }

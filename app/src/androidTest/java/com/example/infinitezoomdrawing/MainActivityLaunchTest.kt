@@ -84,12 +84,38 @@ class MainActivityLaunchTest {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->
                 val drawingView = activity.findViewById<DrawingView>(R.id.drawingView)
+                val zoomMeter = activity.findViewById<TextView>(R.id.tvZoomMeter)
 
                 assertNotNull(drawingView)
+                assertNotNull(zoomMeter)
                 assertEquals(1.0, drawingView.getViewportScale(), EPSILON)
                 assertEquals(0.0, drawingView.getViewportOffsetX(), EPSILON)
                 assertEquals(0.0, drawingView.getViewportOffsetY(), EPSILON)
                 assertFalse(drawingView.requiresCompositingLayerForTesting())
+                assertEquals(
+                    activity.getString(R.string.zoom_meter_value, 0.0),
+                    zoomMeter.text.toString()
+                )
+            }
+        }
+    }
+
+    @Test
+    fun launchMainActivity_updatesZoomMeterWhenViewportScaleChanges() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val drawingView = activity.findViewById<DrawingView>(R.id.drawingView)
+                val zoomMeter = activity.findViewById<TextView>(R.id.tvZoomMeter)
+
+                drawingView.setViewportTransform(scale = 4.0, offsetX = 0.0, offsetY = 0.0)
+
+                assertEquals(
+                    activity.getString(
+                        R.string.zoom_meter_value,
+                        MainActivity.calculateZoomMeterValue(drawingView.getViewportScale())
+                    ),
+                    zoomMeter.text.toString()
+                )
             }
         }
     }
