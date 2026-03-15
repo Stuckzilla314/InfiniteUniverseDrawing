@@ -129,14 +129,14 @@ class DrawingView @JvmOverloads constructor(
                 beginTransform(event)
             }
             MotionEvent.ACTION_MOVE -> {
-                if (event.pointerCount > 1 || isTransforming || scaleGestureDetector.isInProgress) {
+                if (isTransformGesture(event)) {
                     updateTransform(event)
                 } else {
                     updateStroke(event.x, event.y)
                 }
             }
             MotionEvent.ACTION_POINTER_UP -> {
-                if (event.pointerCount - 1 < 2) endTransform()
+                if (event.pointerCount <= 2) endTransform()
             }
             MotionEvent.ACTION_UP -> {
                 if (!isTransforming && !scaleGestureDetector.isInProgress) {
@@ -159,7 +159,7 @@ class DrawingView @JvmOverloads constructor(
     internal fun getViewportOffsetY(): Double = viewportOffsetY
 
     internal fun setViewportTransform(scale: Double, offsetX: Double, offsetY: Double) {
-        if (scale.isFinite() && scale > 0.0) {
+        if (scale.isFinite() && scale > 0.0 && offsetX.isFinite() && offsetY.isFinite()) {
             viewportScale = scale
             viewportOffsetX = offsetX
             viewportOffsetY = offsetY
@@ -264,7 +264,7 @@ class DrawingView @JvmOverloads constructor(
     private fun updateTransform(event: MotionEvent) {
         val focusX = focusX(event)
         val focusY = focusY(event)
-        if (isTransforming && !scaleGestureDetector.isInProgress) {
+        if (canPanDuringTransform()) {
             viewportOffsetX += (focusX - lastFocusX).toDouble()
             viewportOffsetY += (focusY - lastFocusY).toDouble()
             invalidate()
@@ -298,6 +298,12 @@ class DrawingView @JvmOverloads constructor(
     private fun toCanvasX(screenX: Float): Float = ((screenX.toDouble() - viewportOffsetX) / viewportScale).toFloat()
 
     private fun toCanvasY(screenY: Float): Float = ((screenY.toDouble() - viewportOffsetY) / viewportScale).toFloat()
+
+    private fun isTransformGesture(event: MotionEvent): Boolean {
+        return event.pointerCount > 1 || isTransforming || scaleGestureDetector.isInProgress
+    }
+
+    private fun canPanDuringTransform(): Boolean = isTransforming && !scaleGestureDetector.isInProgress
 
     private fun focusX(event: MotionEvent): Float {
         var total = 0f
