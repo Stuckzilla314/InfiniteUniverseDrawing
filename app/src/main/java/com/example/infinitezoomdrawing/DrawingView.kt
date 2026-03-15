@@ -98,8 +98,10 @@ class DrawingView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         canvas.drawColor(Color.WHITE)
         loadedBitmap?.let { canvas.drawBitmap(it, loadedBitmapX, loadedBitmapY, null) }
+        val layer = canvas.saveLayer(null, null)
         for (stroke in strokes) canvas.drawPath(stroke.path, stroke.paint)
         canvas.drawPath(currentPath, currentPaint)
+        canvas.restoreToCount(layer)
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
