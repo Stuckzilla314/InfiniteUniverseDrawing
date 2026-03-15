@@ -59,6 +59,28 @@ class DrawingViewViewportGestureTest {
     }
 
     @Test
+    fun extremelyLargeViewportTransform_rebasesAndKeepsDrawingAligned() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val drawingView = activity.findViewById<DrawingView>(R.id.drawingView)
+
+                drawingView.setViewportTransform(scale = 1_000_000.0, offsetX = 0.0, offsetY = 0.0)
+                drawingView.brushType = BrushType.PEN
+                drawingView.brushColor = Color.BLACK
+                drawingView.brushSize = 24f
+
+                dispatchStroke(drawingView, 300f, 300f, 420f, 300f)
+
+                val bitmap = drawingView.exportBitmap()
+
+                assertTrue(drawingView.getViewportScale() <= 64.0)
+                assertEquals(Color.BLACK, bitmap.getPixel(360, 300))
+                assertEquals(Color.WHITE, bitmap.getPixel(240, 300))
+            }
+        }
+    }
+
+    @Test
     fun twoFingerPan_updatesViewportOffset() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->

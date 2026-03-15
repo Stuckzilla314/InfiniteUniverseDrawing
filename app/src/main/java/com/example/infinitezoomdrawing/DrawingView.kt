@@ -26,6 +26,10 @@ class DrawingView @JvmOverloads constructor(
 
     companion object {
         private const val MIN_VIEWPORT_SCALE_FOR_BRUSH_CALC = 1e-12
+        private const val MAX_STABLE_VIEWPORT_SCALE = 64.0
+        private const val TARGET_STABLE_VIEWPORT_SCALE = 32.0
+        private const val MIN_STABLE_VIEWPORT_SCALE = 1.0 / MAX_STABLE_VIEWPORT_SCALE
+        private const val TARGET_MIN_STABLE_VIEWPORT_SCALE = 1.0 / TARGET_STABLE_VIEWPORT_SCALE
     }
 
     private data class Stroke(val path: Path, val paint: Paint)
@@ -47,6 +51,7 @@ class DrawingView @JvmOverloads constructor(
     private var loadedBitmap: Bitmap? = null
     private var loadedBitmapX: Float = 0f
     private var loadedBitmapY: Float = 0f
+    private var loadedBitmapScale: Float = 1f
 
     private var viewportScale = 1.0
     private var viewportOffsetX = 0.0
@@ -58,8 +63,6 @@ class DrawingView @JvmOverloads constructor(
 
     private val scaleGestureDetector = ScaleGestureDetector(context, ScaleListener())
     private val viewportMatrix = Matrix()
-    private val inverseViewportMatrix = Matrix()
-    private val mappedPoint = FloatArray(2)
 
     init {
         setLayerType(LAYER_TYPE_SOFTWARE, null)
@@ -127,7 +130,13 @@ class DrawingView @JvmOverloads constructor(
         canvas.drawColor(Color.WHITE)
         canvas.save()
         canvas.concat(viewportMatrix)
-        loadedBitmap?.let { canvas.drawBitmap(it, loadedBitmapX, loadedBitmapY, null) }
+        loadedBitmap?.let {
+            canvas.save()
+            canvas.translate(loadedBitmapX, loadedBitmapY)
+            canvas.scale(loadedBitmapScale, loadedBitmapScale)
+            canvas.drawBitmap(it, 0f, 0f, null)
+            canvas.restore()
+        }
         val layer = canvas.saveLayer(null, null)
         for (stroke in strokes) canvas.drawPath(stroke.path, stroke.paint)
         canvas.drawPath(currentPath, currentPaint)
@@ -180,6 +189,7 @@ class DrawingView @JvmOverloads constructor(
             viewportOffsetX = offsetX
             viewportOffsetY = offsetY
             updateViewportMatrix()
+            normalizeViewportScale(width / 2f, height / 2f)
             invalidate()
         }
     }
@@ -197,6 +207,7 @@ class DrawingView @JvmOverloads constructor(
         redoStack.clear()
         currentPath.reset()
         loadedBitmap = null
+        loadedBitmapScale = 1f
         invalidate()
     }
 
@@ -230,6 +241,7 @@ class DrawingView @JvmOverloads constructor(
         loadedBitmap = scaledBitmap
         loadedBitmapX = (width - scaledBitmap.width) / 2f
         loadedBitmapY = (height - scaledBitmap.height) / 2f
+        loadedBitmapScale = 1f
         invalidate()
     }
 
@@ -312,10 +324,8 @@ class DrawingView @JvmOverloads constructor(
     }
 
     private fun mapScreenToCanvas(screenX: Float, screenY: Float): Pair<Float, Float> {
-        mappedPoint[0] = screenX
-        mappedPoint[1] = screenY
-        inverseViewportMatrix.mapPoints(mappedPoint)
-        return mappedPoint[0] to mappedPoint[1]
+        return ((screenX.toDouble() - viewportOffsetX) / viewportScale).toFloat() to
+            ((screenY.toDouble() - viewportOffsetY) / viewportScale).toFloat()
     }
 
     private fun isTransformGesture(event: MotionEvent): Boolean {
@@ -357,6 +367,7 @@ class DrawingView @JvmOverloads constructor(
             viewportScale = nextScale
             viewportOffsetX = focusX - (canvasFocusX.toDouble() * viewportScale)
             viewportOffsetY = focusY - (canvasFocusY.toDouble() * viewportScale)
+            normalizeViewportScale(detector.focusX, detector.focusY)
             updateViewportMatrix()
             lastFocusX = detector.focusX
             lastFocusY = detector.focusY
@@ -365,13 +376,66 @@ class DrawingView @JvmOverloads constructor(
         }
     }
 
+    private fun normalizeViewportScale(focusScreenX: Float, focusScreenY: Float) {
+        val (focusCanvasX, focusCanvasY) = mapScreenToCanvas(focusScreenX, focusScreenY)
+        when {
+            viewportScale > MAX_STABLE_VIEWPORT_SCALE -> {
+                val rebaseFactor = viewportScale / TARGET_STABLE_VIEWPORT_SCALE
+                rebaseCanvasContent(rebaseFactor, focusCanvasX, focusCanvasY)
+            }
+            viewportScale < MIN_STABLE_VIEWPORT_SCALE -> {
+                val rebaseFactor = viewportScale / TARGET_MIN_STABLE_VIEWPORT_SCALE
+                rebaseCanvasContent(rebaseFactor, focusCanvasX, focusCanvasY)
+            }
+        }
+    }
+
+    private fun rebaseCanvasContent(scaleFactor: Double, anchorX: Float, anchorY: Float) {
+        if (!scaleFactor.isFinite() || scaleFactor <= 0.0 || scaleFactor == 1.0) return
+
+        val transform = Matrix().apply {
+            setTranslate(-anchorX, -anchorY)
+            postScale(scaleFactor.toFloat(), scaleFactor.toFloat())
+        }
+
+        strokes.forEach { stroke ->
+            stroke.path.transform(transform)
+            scalePaintForRebase(stroke.paint, scaleFactor)
+        }
+        redoStack.forEach { stroke ->
+            stroke.path.transform(transform)
+            scalePaintForRebase(stroke.paint, scaleFactor)
+        }
+        currentPath.transform(transform)
+
+        loadedBitmapX = ((loadedBitmapX - anchorX) * scaleFactor).toFloat()
+        loadedBitmapY = ((loadedBitmapY - anchorY) * scaleFactor).toFloat()
+        loadedBitmapScale *= scaleFactor.toFloat()
+
+        viewportOffsetX += viewportScale * anchorX.toDouble()
+        viewportOffsetY += viewportScale * anchorY.toDouble()
+        viewportScale /= scaleFactor
+
+        refreshCurrentPaint()
+        updateViewportMatrix()
+    }
+
+    private fun scalePaintForRebase(paint: Paint, scaleFactor: Double) {
+        paint.strokeWidth = (paint.strokeWidth * scaleFactor).toFloat()
+        if (paint.maskFilter != null) {
+            paint.maskFilter = android.graphics.BlurMaskFilter(
+                paint.strokeWidth / 3f,
+                android.graphics.BlurMaskFilter.Blur.NORMAL
+            )
+        }
+    }
+
     private fun updateViewportMatrix() {
         viewportMatrix.reset()
         // Keep the viewport transform in screen = (canvas * scale) + offset form so
-        // the inverse matrix maps touch input back into the exact same draw space.
+        // render math stays simple and touch mapping can use the same affine values directly.
         viewportMatrix.postScale(viewportScale.toFloat(), viewportScale.toFloat())
         viewportMatrix.postTranslate(viewportOffsetX.toFloat(), viewportOffsetY.toFloat())
-        viewportMatrix.invert(inverseViewportMatrix)
     }
 
     private fun refreshCurrentPaint() {
