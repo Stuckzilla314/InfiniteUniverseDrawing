@@ -58,7 +58,7 @@
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:contentDescription="@string/new_drawing"
-                android:tint="@color/button_text"
+                app:tint="@color/button_text"
                 app:srcCompat="@drawable/ic_action_new" />
 
             <androidx.appcompat.widget.AppCompatImageButton
@@ -67,7 +67,7 @@
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:contentDescription="@string/open_drawing"
-                android:tint="@color/button_text"
+                app:tint="@color/button_text"
                 app:srcCompat="@drawable/ic_action_open" />
 
             <androidx.appcompat.widget.AppCompatImageButton
@@ -76,7 +76,7 @@
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:contentDescription="@string/save_drawing"
-                android:tint="@color/toolbar_bg"
+                app:tint="@color/toolbar_bg"
                 app:srcCompat="@drawable/ic_action_save" />
 
         </LinearLayout>
@@ -94,7 +94,7 @@
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:contentDescription="@string/brush_pen"
-                android:tint="@color/button_text"
+                app:tint="@color/button_text"
                 app:srcCompat="@drawable/ic_tool_pen" />
 
             <androidx.appcompat.widget.AppCompatImageButton
@@ -103,7 +103,7 @@
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:contentDescription="@string/brush_marker"
-                android:tint="@color/button_text"
+                app:tint="@color/button_text"
                 app:srcCompat="@drawable/ic_tool_marker" />
 
             <androidx.appcompat.widget.AppCompatImageButton
@@ -112,7 +112,7 @@
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:contentDescription="@string/brush_soft"
-                android:tint="@color/button_text"
+                app:tint="@color/button_text"
                 app:srcCompat="@drawable/ic_tool_brush" />
 
             <androidx.appcompat.widget.AppCompatImageButton
@@ -121,7 +121,7 @@
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:contentDescription="@string/brush_eraser"
-                android:tint="@color/button_text"
+                app:tint="@color/button_text"
                 app:srcCompat="@drawable/ic_tool_eraser" />
 
         </LinearLayout>
@@ -210,7 +210,7 @@
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:contentDescription="@string/undo"
-                android:tint="@color/button_text"
+                app:tint="@color/button_text"
                 app:srcCompat="@drawable/ic_action_undo" />
 
             <androidx.appcompat.widget.AppCompatImageButton
@@ -219,7 +219,7 @@
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:contentDescription="@string/redo"
-                android:tint="@color/button_text"
+                app:tint="@color/button_text"
                 app:srcCompat="@drawable/ic_action_redo" />
 
             <androidx.appcompat.widget.AppCompatImageButton
@@ -228,7 +228,7 @@
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:contentDescription="@string/clear_canvas"
-                android:tint="@color/color_error"
+                app:tint="@color/color_error"
                 app:srcCompat="@drawable/ic_action_clear" />
 
         </LinearLayout>
