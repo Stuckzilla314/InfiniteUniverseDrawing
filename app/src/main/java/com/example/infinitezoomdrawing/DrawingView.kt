@@ -498,7 +498,6 @@ class DrawingView @JvmOverloads constructor(
     }
 
     private fun Paint.usesClearCompositing(): Boolean {
-        val porterDuffXfermode = xfermode as? PorterDuffXfermode ?: return false
-        return porterDuffXfermode.mode == PorterDuff.Mode.CLEAR
+        return color == Color.TRANSPARENT && xfermode is PorterDuffXfermode
     }
 }
