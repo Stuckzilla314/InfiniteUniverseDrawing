@@ -634,6 +634,55 @@ class DrawingViewViewportGestureTest {
         }
     }
 
+    @Test
+    fun pinchZoomOutAndBackIn_preservesDeepZoomDetail() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val drawingView = activity.findViewById<DrawingView>(R.id.drawingView)
+                val centerX = drawingView.width / 2f
+                val centerY = drawingView.height / 2f
+
+                fun pinchZoom(zoomIn: Boolean) {
+                    val startOffset = 60f
+                    val endOffset = 240f
+                    val innerOffset = if (zoomIn) startOffset else endOffset
+                    val outerOffset = if (zoomIn) endOffset else startOffset
+                    dispatchTwoFingerGesture(
+                        drawingView = drawingView,
+                        startFirst = Point(centerX - innerOffset, centerY),
+                        startSecond = Point(centerX + innerOffset, centerY),
+                        endFirst = Point(centerX - outerOffset, centerY),
+                        endSecond = Point(centerX + outerOffset, centerY)
+                    )
+                }
+
+                repeat(3) { pinchZoom(zoomIn = true) }
+
+                drawingView.brushType = BrushType.PEN
+                drawingView.brushSize = 18f
+                drawingView.brushColor = Color.RED
+                dispatchStroke(
+                    drawingView,
+                    centerX - 40f,
+                    centerY,
+                    centerX + 40f,
+                    centerY
+                )
+
+                repeat(3) { pinchZoom(zoomIn = false) }
+                repeat(3) { pinchZoom(zoomIn = true) }
+
+                val bitmap = drawingView.exportBitmap()
+                try {
+                    assertEquals(Color.RED, bitmap.getPixel(centerX.toInt(), centerY.toInt()))
+                    assertEquals(Color.WHITE, bitmap.getPixel(centerX.toInt(), (centerY - 80f).toInt()))
+                } finally {
+                    bitmap.recycle()
+                }
+            }
+        }
+    }
+
     private fun dispatchStroke(
         drawingView: DrawingView,
         startX: Float,

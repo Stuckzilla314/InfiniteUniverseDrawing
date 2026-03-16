@@ -405,12 +405,16 @@ class DrawingView @JvmOverloads constructor(
             viewportScale = nextScale
             viewportOffsetX = focusX - (canvasFocusX.toDouble() * viewportScale)
             viewportOffsetY = focusY - (canvasFocusY.toDouble() * viewportScale)
-            normalizeViewportScale(detector.focusX, detector.focusY)
             updateViewportMatrix()
             lastFocusX = detector.focusX
             lastFocusY = detector.focusY
             invalidate()
             return true
+        }
+
+        override fun onScaleEnd(detector: ScaleGestureDetector) {
+            normalizeViewportScale(detector.focusX, detector.focusY)
+            invalidate()
         }
     }
 
