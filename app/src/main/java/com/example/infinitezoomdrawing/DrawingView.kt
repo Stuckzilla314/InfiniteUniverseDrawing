@@ -405,12 +405,16 @@ class DrawingView @JvmOverloads constructor(
             viewportScale = nextScale
             viewportOffsetX = focusX - (canvasFocusX.toDouble() * viewportScale)
             viewportOffsetY = focusY - (canvasFocusY.toDouble() * viewportScale)
-            normalizeViewportScale(detector.focusX, detector.focusY)
             updateViewportMatrix()
             lastFocusX = detector.focusX
             lastFocusY = detector.focusY
             invalidate()
             return true
+        }
+
+        override fun onScaleEnd(detector: ScaleGestureDetector) {
+            normalizeViewportScale(detector.focusX, detector.focusY)
+            invalidate()
         }
     }
 
@@ -519,9 +523,24 @@ class DrawingView @JvmOverloads constructor(
     private fun pathIntersectsVisibleRect(path: Path, paint: Paint, visibleCanvasRect: RectF): Boolean {
         if (path.isEmpty) return false
 
+        val coveragePath = Path()
+        paint.getFillPath(path, coveragePath)
+
+        val coverageBounds = RectF()
+        coveragePath.computeBounds(coverageBounds, true)
+
+        if (
+            coverageBounds.left.isFinite() &&
+            coverageBounds.top.isFinite() &&
+            coverageBounds.right.isFinite() &&
+            coverageBounds.bottom.isFinite() &&
+            !coverageBounds.isEmpty
+        ) {
+            return RectF.intersects(coverageBounds, visibleCanvasRect)
+        }
+
         val pathBounds = RectF()
         path.computeBounds(pathBounds, true)
-
         val strokePadding = maxOf(paint.strokeWidth, 1f)
         if (pathBounds.isEmpty()) {
             pathBounds.set(
@@ -539,14 +558,28 @@ class DrawingView @JvmOverloads constructor(
     private fun drawStrokes(canvas: Canvas, visibleCanvasRect: RectF) {
         drawInViewport(canvas) { viewportCanvas ->
             for (stroke in strokes) {
-                if (pathIntersectsVisibleRect(stroke.path, stroke.paint, visibleCanvasRect)) {
+                if (
+                    shouldAlwaysDrawStroke(stroke.paint) ||
+                    pathIntersectsVisibleRect(stroke.path, stroke.paint, visibleCanvasRect)
+                ) {
                     viewportCanvas.drawPath(stroke.path, stroke.paint)
                 }
             }
-            if (pathIntersectsVisibleRect(currentPath, currentPaint, visibleCanvasRect)) {
+            if (
+                shouldAlwaysDrawStroke(currentPaint) ||
+                pathIntersectsVisibleRect(currentPath, currentPaint, visibleCanvasRect)
+            ) {
                 viewportCanvas.drawPath(currentPath, currentPaint)
             }
         }
+    }
+
+    private fun shouldAlwaysDrawStroke(paint: Paint): Boolean {
+        val projectedStrokeWidth = paint.strokeWidth.toDouble() * viewportScale
+        if (!projectedStrokeWidth.isFinite()) return false
+
+        val viewportMaxDimension = maxOf(width, height).toDouble()
+        return viewportMaxDimension > 0.0 && projectedStrokeWidth >= viewportMaxDimension
     }
 
     private fun requiresCompositingLayer(): Boolean {

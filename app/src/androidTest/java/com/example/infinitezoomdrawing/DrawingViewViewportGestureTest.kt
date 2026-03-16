@@ -293,7 +293,7 @@ class DrawingViewViewportGestureTest {
 
                 assertTrue(drawingView.requiresCompositingLayerForTesting())
 
-                listOf(8.0, 16.0, 32.0, 48.0, 96.0, 192.0, 384.0).forEach { scale ->
+                listOf(8.0, 16.0, 32.0, 48.0, 96.0, 192.0, 384.0, 768.0, 1_536.0, 3_072.0).forEach { scale ->
                     setAnchoredViewport(scale)
                     val bitmap = drawingView.exportBitmap()
                     try {
@@ -404,7 +404,7 @@ class DrawingViewViewportGestureTest {
 
                 // Check repeated zoom steps around the 32x/64x normalization boundaries while the
                 // overlapping strokes stay pinned to the viewport edge where flicker is easiest to spot.
-                listOf(8.0, 24.0, 31.0, 32.0, 33.0, 63.0, 64.0, 65.0).forEach { scale ->
+                listOf(8.0, 24.0, 31.0, 32.0, 33.0, 63.0, 64.0, 65.0, 128.0, 256.0, 512.0, 1_024.0).forEach { scale ->
                     drawingView.setViewportTransform(scale = scale, offsetX = 0.0, offsetY = 0.0)
                     val bitmap = drawingView.exportBitmap()
                     try {
@@ -453,6 +453,105 @@ class DrawingViewViewportGestureTest {
                     assertEquals(Color.WHITE, bitmap.getPixel(bitmap.width - 40, bitmap.height - 40))
                 } finally {
                     bitmap.recycle()
+                }
+            }
+        }
+    }
+
+    @Test
+    fun nestedBlackWhiteBlackDeepZoom_keepsAllStrokeColorsVisible() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val drawingView = activity.findViewById<DrawingView>(R.id.drawingView)
+                val focusScreenX = drawingView.width / 2f
+                val focusScreenY = drawingView.height / 2f
+                val focusCanvasX = 12.0
+                val focusCanvasY = 12.0
+                val brushSize = 80f
+                val strokeHalfLength = 220f
+                val oldestStrokeScale = 8.0
+                val middleStrokeScale = 64.0
+                val newestStrokeScale = 512.0
+
+                fun setAnchoredViewport(scale: Double) {
+                    drawingView.setViewportTransform(
+                        scale = scale,
+                        offsetX = focusScreenX - (focusCanvasX * scale),
+                        offsetY = focusScreenY - (focusCanvasY * scale)
+                    )
+                }
+
+                fun halfScreenStrokeWidth(currentScale: Double, drawScale: Double): Double {
+                    return (brushSize * currentScale / drawScale) / 2.0
+                }
+
+                setAnchoredViewport(scale = oldestStrokeScale)
+                drawingView.brushType = BrushType.PEN
+                drawingView.brushSize = brushSize
+                drawingView.brushColor = Color.BLACK
+                dispatchStroke(
+                    drawingView,
+                    focusScreenX - strokeHalfLength,
+                    focusScreenY,
+                    focusScreenX + strokeHalfLength,
+                    focusScreenY
+                )
+
+                setAnchoredViewport(scale = middleStrokeScale)
+                drawingView.brushColor = Color.WHITE
+                dispatchStroke(
+                    drawingView,
+                    focusScreenX - strokeHalfLength,
+                    focusScreenY,
+                    focusScreenX + strokeHalfLength,
+                    focusScreenY
+                )
+
+                setAnchoredViewport(scale = newestStrokeScale)
+                drawingView.brushColor = Color.BLACK
+                dispatchStroke(
+                    drawingView,
+                    focusScreenX - strokeHalfLength,
+                    focusScreenY,
+                    focusScreenX + strokeHalfLength,
+                    focusScreenY
+                )
+
+                listOf(256.0, 512.0, 768.0, 1_024.0).forEach { testScale ->
+                    setAnchoredViewport(testScale)
+
+                    val newestHalfWidth = halfScreenStrokeWidth(testScale, newestStrokeScale)
+                    val middleHalfWidth = halfScreenStrokeWidth(testScale, middleStrokeScale)
+                    val oldestHalfWidth = halfScreenStrokeWidth(testScale, oldestStrokeScale)
+                    val maxVisibleOffset = (focusScreenY - 24f).toDouble()
+
+                    val whiteOffset = ((newestHalfWidth + middleHalfWidth) / 2.0)
+                        .coerceAtMost(maxVisibleOffset)
+                        .toInt()
+                    val outerBlackOffset = ((middleHalfWidth + minOf(oldestHalfWidth, maxVisibleOffset)) / 2.0)
+                        .coerceAtMost(maxVisibleOffset)
+                        .toInt()
+
+                    val bitmap = drawingView.exportBitmap()
+                    try {
+                        assertEquals(
+                            "Expected newest black stroke to stay visible at scale=$testScale",
+                            Color.BLACK,
+                            bitmap.getPixel(focusScreenX.toInt(), focusScreenY.toInt())
+                        )
+                        assertEquals(
+                            "Expected middle white stroke to stay visible at scale=$testScale",
+                            Color.WHITE,
+                            bitmap.getPixel(focusScreenX.toInt(), focusScreenY.toInt() - whiteOffset)
+                        )
+                        assertEquals(
+                            "Expected oldest black stroke to stay visible at scale=$testScale",
+                            Color.BLACK,
+                            bitmap.getPixel(focusScreenX.toInt(), focusScreenY.toInt() - outerBlackOffset)
+                        )
+                    } finally {
+                        bitmap.recycle()
+                    }
                 }
             }
         }
@@ -530,6 +629,55 @@ class DrawingViewViewportGestureTest {
                     assertEquals(Color.BLACK, zoomedOutBitmap.getPixel(20, 180))
                 } finally {
                     zoomedOutBitmap.recycle()
+                }
+            }
+        }
+    }
+
+    @Test
+    fun pinchZoomOutAndBackIn_preservesDeepZoomDetail() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val drawingView = activity.findViewById<DrawingView>(R.id.drawingView)
+                val centerX = drawingView.width / 2f
+                val centerY = drawingView.height / 2f
+
+                fun pinchZoom(zoomIn: Boolean) {
+                    val startOffset = 60f
+                    val endOffset = 240f
+                    val innerOffset = if (zoomIn) startOffset else endOffset
+                    val outerOffset = if (zoomIn) endOffset else startOffset
+                    dispatchTwoFingerGesture(
+                        drawingView = drawingView,
+                        startFirst = Point(centerX - innerOffset, centerY),
+                        startSecond = Point(centerX + innerOffset, centerY),
+                        endFirst = Point(centerX - outerOffset, centerY),
+                        endSecond = Point(centerX + outerOffset, centerY)
+                    )
+                }
+
+                repeat(3) { pinchZoom(zoomIn = true) }
+
+                drawingView.brushType = BrushType.PEN
+                drawingView.brushSize = 18f
+                drawingView.brushColor = Color.RED
+                dispatchStroke(
+                    drawingView,
+                    centerX - 40f,
+                    centerY,
+                    centerX + 40f,
+                    centerY
+                )
+
+                repeat(3) { pinchZoom(zoomIn = false) }
+                repeat(3) { pinchZoom(zoomIn = true) }
+
+                val bitmap = drawingView.exportBitmap()
+                try {
+                    assertEquals(Color.RED, bitmap.getPixel(centerX.toInt(), centerY.toInt()))
+                    assertEquals(Color.WHITE, bitmap.getPixel(centerX.toInt(), (centerY - 80f).toInt()))
+                } finally {
+                    bitmap.recycle()
                 }
             }
         }
