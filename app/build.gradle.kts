@@ -11,12 +11,15 @@ android {
     val releaseStorePassword = providers.environmentVariable("INFINITE_ZOOM_DRAWING_RELEASE_STORE_PASSWORD").orNull
     val releaseKeyAlias = providers.environmentVariable("INFINITE_ZOOM_DRAWING_RELEASE_KEY_ALIAS").orNull
     val releaseKeyPassword = providers.environmentVariable("INFINITE_ZOOM_DRAWING_RELEASE_KEY_PASSWORD").orNull
-    val hasReleaseSigning = listOf(
+    val releaseStore = releaseStoreFile?.let { file(it) }
+    val hasAllReleaseSigningEnvVars = listOf(
         releaseStoreFile,
         releaseStorePassword,
         releaseKeyAlias,
         releaseKeyPassword
     ).all { !it.isNullOrBlank() }
+    val hasReadableReleaseStore = releaseStore?.isFile == true && releaseStore.canRead()
+    val hasReleaseSigning = hasAllReleaseSigningEnvVars && hasReadableReleaseStore
 
     defaultConfig {
         applicationId = "com.example.infinitezoomdrawing"
@@ -31,7 +34,7 @@ android {
     signingConfigs {
         create("release") {
             if (hasReleaseSigning) {
-                storeFile = file(releaseStoreFile!!)
+                storeFile = releaseStore
                 storePassword = releaseStorePassword
                 keyAlias = releaseKeyAlias
                 keyPassword = releaseKeyPassword
