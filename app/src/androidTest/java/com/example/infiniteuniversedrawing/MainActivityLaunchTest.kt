@@ -98,7 +98,7 @@ class MainActivityLaunchTest {
     }
 
     @Test
-    fun launchMainActivity_zoomControlsChangeViewportAndCanSaveCheckpoint() {
+    fun launchMainActivity_homeButtonLongPressNotHandled() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->
                 val drawingView = activity.findViewById<DrawingView>(R.id.drawingView)
@@ -111,9 +111,7 @@ class MainActivityLaunchTest {
 
                 assertTrue(drawingView.getViewportScale() > 2.0)
 
-                homeButton.performLongClick()
-
-                assertEquals(1, drawingView.getHomeCheckpointCount())
+                assertFalse(homeButton.performLongClick())
             }
         }
     }

@@ -180,32 +180,6 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, R.string.already_home, Toast.LENGTH_SHORT).show()
             }
         }
-        binding.btnHome.setOnLongClickListener {
-            when {
-                binding.drawingView.isAtHome() && binding.drawingView.hasHomeCheckpoints() -> {
-                    binding.drawingView.clearHomeCheckpoints()
-                    Toast.makeText(this, R.string.home_checkpoints_cleared, Toast.LENGTH_SHORT).show()
-                }
-                binding.drawingView.isAtHome() -> {
-                    Toast.makeText(this, R.string.already_home, Toast.LENGTH_SHORT).show()
-                }
-                binding.drawingView.addHomeCheckpoint() -> {
-                    Toast.makeText(
-                        this,
-                        getString(
-                            R.string.home_checkpoint_added,
-                            binding.drawingView.getHomeCheckpointCount()
-                        ),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-                else -> {
-                    Toast.makeText(this, R.string.home_checkpoint_already_saved, Toast.LENGTH_SHORT)
-                        .show()
-                }
-            }
-            true
-        }
         binding.btnUndo.setOnClickListener {
             binding.drawingView.undo()
             Toast.makeText(this, R.string.undo, Toast.LENGTH_SHORT).show()

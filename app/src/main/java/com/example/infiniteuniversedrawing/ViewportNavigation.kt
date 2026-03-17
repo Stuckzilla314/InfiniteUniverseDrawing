@@ -25,31 +25,10 @@ internal data class ViewportTransformState(
 
 internal fun buildReturnHomePath(
     current: ViewportTransformState,
-    checkpoints: List<ViewportTransformState>,
     home: ViewportTransformState = ViewportTransformState(scale = 1.0, offsetX = 0.0, offsetY = 0.0)
 ): List<ViewportTransformState> {
     if (!current.isValid() || !home.isValid() || current.isApproximately(home)) return emptyList()
-
-    val validCheckpoints = checkpoints.filter { it.isValid() }
-    val currentCheckpointIndex = validCheckpoints.indexOfLast { it.isApproximately(current) }
-    val checkpointsOnWayHome = if (currentCheckpointIndex >= 0) {
-        validCheckpoints.subList(0, currentCheckpointIndex)
-    } else {
-        validCheckpoints
-    }
-
-    val path = mutableListOf<ViewportTransformState>()
-    var lastTarget = current
-    checkpointsOnWayHome.asReversed().forEach { checkpoint ->
-        if (!checkpoint.isApproximately(lastTarget)) {
-            path.add(checkpoint)
-            lastTarget = checkpoint
-        }
-    }
-    if (!home.isApproximately(lastTarget)) {
-        path.add(home)
-    }
-    return path
+    return listOf(home)
 }
 
 internal fun rebaseViewportState(
@@ -124,7 +103,7 @@ internal fun zoomViewportStateAroundScreenPoint(
  *
  * When a return-home leg needs to zoom out and pan, this intentionally returns an intermediate
  * zoom-only state first. The caller then re-evaluates the remaining path from that state so the
- * following segment can pan to the checkpoint/home target at the new scale.
+ * following segment can pan to the home target at the new scale.
  */
 internal fun homeReturnAnimationTarget(
     start: ViewportTransformState,
