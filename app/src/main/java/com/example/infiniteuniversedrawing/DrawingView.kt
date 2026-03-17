@@ -58,7 +58,6 @@ class DrawingView @JvmOverloads constructor(
     private var viewportOffsetX = 0.0
     private var viewportOffsetY = 0.0
     private var homeViewportState = INITIAL_HOME_VIEWPORT_STATE
-    private val homeCheckpoints = mutableListOf<ViewportTransformState>()
     private var viewportAnimator: ValueAnimator? = null
 
     private var currentPath = Path()
@@ -211,8 +210,6 @@ class DrawingView @JvmOverloads constructor(
         applyViewportTransform(scale, offsetX, offsetY)
     }
 
-    internal fun getHomeCheckpointCount(): Int = homeCheckpoints.size
-
     fun zoomBy(scaleFactor: Double, focusScreenX: Float = width / 2f, focusScreenY: Float = height / 2f) {
         cancelViewportAnimation()
         applyZoom(scaleFactor, focusScreenX, focusScreenY)
@@ -224,21 +221,6 @@ class DrawingView @JvmOverloads constructor(
     }
 
     fun isAtHome(): Boolean = currentViewportState().isApproximately(homeViewportState)
-
-    fun addHomeCheckpoint(): Boolean {
-        cancelViewportAnimation()
-        val checkpoint = currentViewportState()
-        if (checkpoint.isApproximately(homeViewportState)) return false
-        if (homeCheckpoints.any { it.isApproximately(checkpoint) }) return false
-        homeCheckpoints.add(checkpoint)
-        return true
-    }
-
-    fun hasHomeCheckpoints(): Boolean = homeCheckpoints.isNotEmpty()
-
-    fun clearHomeCheckpoints() {
-        homeCheckpoints.clear()
-    }
 
     override fun onDetachedFromWindow() {
         cancelViewportAnimation()
@@ -289,8 +271,14 @@ class DrawingView @JvmOverloads constructor(
     }
 
     private fun playNextHomeReturnSegment(startState: ViewportTransformState): Boolean {
-        val remainingPath = buildReturnHomePath(startState, homeCheckpoints, homeViewportState)
+        val remainingPath = buildReturnHomePath(startState, homeViewportState)
         val targetState = remainingPath.firstOrNull() ?: return false
+        val animatedTargetState = homeReturnAnimationTarget(
+            start = startState,
+            target = targetState,
+            focusScreenX = width / 2.0,
+            focusScreenY = height / 2.0
+        )
         val isFinalSegment = remainingPath.size == 1
         val fallbackDuration = if (isFinalSegment) {
             HOME_RETURN_FINAL_SEGMENT_DURATION_MS
@@ -298,12 +286,12 @@ class DrawingView @JvmOverloads constructor(
             HOME_RETURN_SEGMENT_DURATION_MS
         }
         val animator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = homeReturnSegmentDurationMs(startState.scale, targetState.scale, fallbackDuration)
+            duration = homeReturnSegmentDurationMs(startState.scale, animatedTargetState.scale, fallbackDuration)
             interpolator = LinearInterpolator()
             addUpdateListener { valueAnimator ->
                 val interpolatedState = interpolateViewportState(
                     start = startState,
-                    end = targetState,
+                    end = animatedTargetState,
                     fraction = valueAnimator.animatedValue as Float
                 )
                 applyViewportTransform(
@@ -331,9 +319,9 @@ class DrawingView @JvmOverloads constructor(
                 }
                 if (!wasCancelled) {
                     applyViewportTransform(
-                        scale = targetState.scale,
-                        offsetX = targetState.offsetX,
-                        offsetY = targetState.offsetY
+                        scale = animatedTargetState.scale,
+                        offsetX = animatedTargetState.offsetX,
+                        offsetY = animatedTargetState.offsetY
                     )
                     playNextHomeReturnSegment(currentViewportState())
                 }
@@ -597,9 +585,6 @@ class DrawingView @JvmOverloads constructor(
         loadedBitmapScale *= scaleFactor.toFloat()
 
         homeViewportState = rebaseViewportState(homeViewportState, scaleFactor, anchorX, anchorY)
-        homeCheckpoints.indices.forEach { index ->
-            homeCheckpoints[index] = rebaseViewportState(homeCheckpoints[index], scaleFactor, anchorX, anchorY)
-        }
 
         viewportOffsetX += viewportScale * anchorX.toDouble()
         viewportOffsetY += viewportScale * anchorY.toDouble()

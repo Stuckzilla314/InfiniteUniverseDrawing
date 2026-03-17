@@ -8,45 +8,17 @@ import kotlin.math.sqrt
 class ViewportNavigationTest {
 
     @Test
-    fun buildReturnHomePath_returnsCheckpointsInReverseOrderBeforeHome() {
-        val checkpointA = ViewportTransformState(scale = 1.5, offsetX = 50.0, offsetY = 10.0)
-        val checkpointB = ViewportTransformState(scale = 3.0, offsetX = 120.0, offsetY = 60.0)
+    fun buildReturnHomePath_returnsHomeWhenCurrentViewportIsAwayFromHome() {
         val current = ViewportTransformState(scale = 6.0, offsetX = 260.0, offsetY = 180.0)
 
-        val path = buildReturnHomePath(current, listOf(checkpointA, checkpointB))
+        val path = buildReturnHomePath(current)
 
-        assertEquals(
-            listOf(
-                checkpointB,
-                checkpointA,
-                ViewportTransformState(scale = 1.0, offsetX = 0.0, offsetY = 0.0)
-            ),
-            path
-        )
-    }
-
-    @Test
-    fun buildReturnHomePath_skipsCheckpointsBeyondCurrentSavedViewport() {
-        val checkpointA = ViewportTransformState(scale = 1.5, offsetX = 50.0, offsetY = 10.0)
-        val checkpointB = ViewportTransformState(scale = 3.0, offsetX = 120.0, offsetY = 60.0)
-
-        val path = buildReturnHomePath(checkpointB, listOf(checkpointA, checkpointB))
-
-        assertEquals(
-            listOf(
-                checkpointA,
-                ViewportTransformState(scale = 1.0, offsetX = 0.0, offsetY = 0.0)
-            ),
-            path
-        )
+        assertEquals(listOf(ViewportTransformState(scale = 1.0, offsetX = 0.0, offsetY = 0.0)), path)
     }
 
     @Test
     fun buildReturnHomePath_returnsEmptyListWhenAlreadyHome() {
-        val path = buildReturnHomePath(
-            current = ViewportTransformState(scale = 1.0, offsetX = 0.0, offsetY = 0.0),
-            checkpoints = listOf(ViewportTransformState(scale = 2.0, offsetX = 100.0, offsetY = 60.0))
-        )
+        val path = buildReturnHomePath(current = ViewportTransformState(scale = 1.0, offsetX = 0.0, offsetY = 0.0))
 
         assertTrue(path.isEmpty())
     }
@@ -66,15 +38,9 @@ class ViewportNavigationTest {
     }
 
     @Test
-    fun buildReturnHomePath_usesRebasedHomeAndCheckpointTransforms() {
+    fun buildReturnHomePath_usesRebasedHomeTransformWhenReturningHome() {
         val home = rebaseViewportState(
             state = ViewportTransformState(scale = 1.0, offsetX = 0.0, offsetY = 0.0),
-            scaleFactor = 2.0,
-            anchorX = 50f,
-            anchorY = 25f
-        )
-        val checkpoint = rebaseViewportState(
-            state = ViewportTransformState(scale = 2.0, offsetX = 120.0, offsetY = 80.0),
             scaleFactor = 2.0,
             anchorX = 50f,
             anchorY = 25f
@@ -86,9 +52,9 @@ class ViewportNavigationTest {
             anchorY = 25f
         )
 
-        val path = buildReturnHomePath(current, listOf(checkpoint), home)
+        val path = buildReturnHomePath(current, home)
 
-        assertEquals(listOf(checkpoint, home), path)
+        assertEquals(listOf(home), path)
     }
 
     @Test
@@ -111,6 +77,23 @@ class ViewportNavigationTest {
     @Test
     fun homeReturnSegmentDurationMs_matchesToolbarZoomOutRateAcrossScaleRatio() {
         assertEquals(180L, homeReturnSegmentDurationMs(startScale = 4.0, targetScale = 4.0 / (1.15 * 1.15), fallbackDurationMs = 650L))
+    }
+
+    @Test
+    fun homeReturnAnimationTarget_computesZoomInPlaceWhenStartScaleExceedsTarget() {
+        val start = ViewportTransformState(scale = 4.0, offsetX = -300.0, offsetY = -200.0)
+        val target = ViewportTransformState(scale = 2.0, offsetX = 40.0, offsetY = 20.0)
+
+        val animatedTarget = homeReturnAnimationTarget(
+            start = start,
+            target = target,
+            focusScreenX = 100.0,
+            focusScreenY = 80.0
+        )
+
+        assertEquals(2.0, animatedTarget.scale, 1e-9)
+        assertEquals(-100.0, animatedTarget.offsetX, 1e-9)
+        assertEquals(-60.0, animatedTarget.offsetY, 1e-9)
     }
 
     @Test

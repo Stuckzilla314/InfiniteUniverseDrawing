@@ -25,31 +25,10 @@ internal data class ViewportTransformState(
 
 internal fun buildReturnHomePath(
     current: ViewportTransformState,
-    checkpoints: List<ViewportTransformState>,
     home: ViewportTransformState = ViewportTransformState(scale = 1.0, offsetX = 0.0, offsetY = 0.0)
 ): List<ViewportTransformState> {
     if (!current.isValid() || !home.isValid() || current.isApproximately(home)) return emptyList()
-
-    val validCheckpoints = checkpoints.filter { it.isValid() }
-    val currentCheckpointIndex = validCheckpoints.indexOfLast { it.isApproximately(current) }
-    val checkpointsOnWayHome = if (currentCheckpointIndex >= 0) {
-        validCheckpoints.subList(0, currentCheckpointIndex)
-    } else {
-        validCheckpoints
-    }
-
-    val path = mutableListOf<ViewportTransformState>()
-    var lastTarget = current
-    checkpointsOnWayHome.asReversed().forEach { checkpoint ->
-        if (!checkpoint.isApproximately(lastTarget)) {
-            path.add(checkpoint)
-            lastTarget = checkpoint
-        }
-    }
-    if (!home.isApproximately(lastTarget)) {
-        path.add(home)
-    }
-    return path
+    return listOf(home)
 }
 
 internal fun rebaseViewportState(
@@ -99,6 +78,44 @@ internal fun homeReturnSegmentDurationMs(
     if (!durationMs.isFinite()) return fallbackDurationMs
 
     return max(CONTINUOUS_ZOOM_REPEAT_DELAY_MS, durationMs).roundToLong()
+}
+
+internal fun zoomViewportStateAroundScreenPoint(
+    start: ViewportTransformState,
+    targetScale: Double,
+    focusScreenX: Double,
+    focusScreenY: Double
+): ViewportTransformState {
+    if (!start.isValid()) return start
+    if (!targetScale.isFinite() || targetScale <= 0.0) return start
+
+    val canvasFocusX = (focusScreenX - start.offsetX) / start.scale
+    val canvasFocusY = (focusScreenY - start.offsetY) / start.scale
+    return ViewportTransformState(
+        scale = targetScale,
+        offsetX = focusScreenX - (canvasFocusX * targetScale),
+        offsetY = focusScreenY - (canvasFocusY * targetScale)
+    )
+}
+
+/**
+ * Returns the next home-return segment target.
+ *
+ * When a return-home leg needs to zoom out and pan, this intentionally returns an intermediate
+ * zoom-only state first. The caller then re-evaluates the remaining path from that state so the
+ * following segment can pan to the home target at the new scale.
+ */
+internal fun homeReturnAnimationTarget(
+    start: ViewportTransformState,
+    target: ViewportTransformState,
+    focusScreenX: Double,
+    focusScreenY: Double
+): ViewportTransformState {
+    if (!start.isValid() || !target.isValid()) return target
+    if (target.scale >= start.scale) return target
+
+    val zoomOnlyTarget = zoomViewportStateAroundScreenPoint(start, target.scale, focusScreenX, focusScreenY)
+    return if (zoomOnlyTarget.isApproximately(target)) target else zoomOnlyTarget
 }
 
 internal fun interpolateViewportState(
