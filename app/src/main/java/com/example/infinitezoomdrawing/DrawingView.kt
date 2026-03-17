@@ -220,11 +220,7 @@ class DrawingView @JvmOverloads constructor(
 
     fun animateReturnHome(): Boolean {
         cancelViewportAnimation()
-        val startState = currentViewportState()
-        val returnPath = buildReturnHomePath(startState, homeCheckpoints, homeViewportState)
-        if (returnPath.isEmpty()) return false
-        playHomeReturnSegment(startState, returnPath, 0)
-        return true
+        return playNextHomeReturnSegment(currentViewportState())
     }
 
     fun isAtHome(): Boolean = currentViewportState().isApproximately(homeViewportState)
@@ -257,13 +253,20 @@ class DrawingView @JvmOverloads constructor(
         )
     }
 
-    private fun applyViewportTransform(scale: Double, offsetX: Double, offsetY: Double) {
+    private fun applyViewportTransform(
+        scale: Double,
+        offsetX: Double,
+        offsetY: Double,
+        normalizeViewport: Boolean = true
+    ) {
         if (scale.isFinite() && scale > 0.0 && offsetX.isFinite() && offsetY.isFinite()) {
             viewportScale = scale
             viewportOffsetX = offsetX
             viewportOffsetY = offsetY
             updateViewportMatrix()
-            normalizeViewportScale(width / 2f, height / 2f)
+            if (normalizeViewport) {
+                normalizeViewportScale(width / 2f, height / 2f)
+            }
             invalidate()
         }
     }
@@ -285,13 +288,10 @@ class DrawingView @JvmOverloads constructor(
         viewportAnimator = null
     }
 
-    private fun playHomeReturnSegment(
-        startState: ViewportTransformState,
-        targets: List<ViewportTransformState>,
-        index: Int
-    ) {
-        val targetState = targets[index]
-        val isFinalSegment = index == targets.lastIndex
+    private fun playNextHomeReturnSegment(startState: ViewportTransformState): Boolean {
+        val targetState = buildReturnHomePath(startState, homeCheckpoints, homeViewportState)
+            .firstOrNull() ?: return false
+        val isFinalSegment = buildReturnHomePath(targetState, homeCheckpoints, homeViewportState).isEmpty()
         val fallbackDuration = if (isFinalSegment) {
             HOME_RETURN_FINAL_SEGMENT_DURATION_MS
         } else {
@@ -309,7 +309,8 @@ class DrawingView @JvmOverloads constructor(
                 applyViewportTransform(
                     scale = interpolatedState.scale,
                     offsetX = interpolatedState.offsetX,
-                    offsetY = interpolatedState.offsetY
+                    offsetY = interpolatedState.offsetY,
+                    normalizeViewport = false
                 )
             }
         }
@@ -328,12 +329,18 @@ class DrawingView @JvmOverloads constructor(
                 if (viewportAnimator === animator) {
                     viewportAnimator = null
                 }
-                if (!wasCancelled && index < targets.lastIndex) {
-                    playHomeReturnSegment(targetState, targets, index + 1)
+                if (!wasCancelled) {
+                    applyViewportTransform(
+                        scale = targetState.scale,
+                        offsetX = targetState.offsetX,
+                        offsetY = targetState.offsetY
+                    )
+                    playNextHomeReturnSegment(currentViewportState())
                 }
             }
         })
         animator.start()
+        return true
     }
 
     fun undo() {
