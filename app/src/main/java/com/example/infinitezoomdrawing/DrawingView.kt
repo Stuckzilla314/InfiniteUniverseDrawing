@@ -289,9 +289,9 @@ class DrawingView @JvmOverloads constructor(
     }
 
     private fun playNextHomeReturnSegment(startState: ViewportTransformState): Boolean {
-        val targetState = buildReturnHomePath(startState, homeCheckpoints, homeViewportState)
-            .firstOrNull() ?: return false
-        val isFinalSegment = buildReturnHomePath(targetState, homeCheckpoints, homeViewportState).isEmpty()
+        val remainingPath = buildReturnHomePath(startState, homeCheckpoints, homeViewportState)
+        val targetState = remainingPath.firstOrNull() ?: return false
+        val isFinalSegment = remainingPath.size == 1
         val fallbackDuration = if (isFinalSegment) {
             HOME_RETURN_FINAL_SEGMENT_DURATION_MS
         } else {
