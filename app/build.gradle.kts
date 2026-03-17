@@ -7,6 +7,17 @@ android {
     namespace = "com.example.infinitezoomdrawing"
     compileSdk = 34
 
+    val releaseStoreFile = providers.environmentVariable("INFINITE_ZOOM_DRAWING_RELEASE_STORE_FILE").orNull
+    val releaseStorePassword = providers.environmentVariable("INFINITE_ZOOM_DRAWING_RELEASE_STORE_PASSWORD").orNull
+    val releaseKeyAlias = providers.environmentVariable("INFINITE_ZOOM_DRAWING_RELEASE_KEY_ALIAS").orNull
+    val releaseKeyPassword = providers.environmentVariable("INFINITE_ZOOM_DRAWING_RELEASE_KEY_PASSWORD").orNull
+    val hasReleaseSigning = listOf(
+        releaseStoreFile,
+        releaseStorePassword,
+        releaseKeyAlias,
+        releaseKeyPassword
+    ).all { !it.isNullOrBlank() }
+
     defaultConfig {
         applicationId = "com.example.infinitezoomdrawing"
         minSdk = 24
@@ -17,10 +28,25 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            if (hasReleaseSigning) {
+                storeFile = file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (hasReleaseSigning) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
