@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.infinitezoomdrawing"
+    namespace = "com.example.infiniteuniversedrawing"
     compileSdk = 34
 
     val releaseStoreFile = providers.environmentVariable("INFINITE_ZOOM_DRAWING_RELEASE_STORE_FILE").orNull
@@ -22,7 +22,7 @@ android {
     val hasReleaseSigning = hasAllReleaseSigningEnvVars && hasReadableReleaseStore
 
     defaultConfig {
-        applicationId = "com.example.infinitezoomdrawing"
+        applicationId = "com.example.infiniteuniversedrawing"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
