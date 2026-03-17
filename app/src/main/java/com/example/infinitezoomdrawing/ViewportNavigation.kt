@@ -1,7 +1,13 @@
 package com.example.infinitezoomdrawing
 
 import kotlin.math.abs
+import kotlin.math.ln
+import kotlin.math.max
 import kotlin.math.pow
+import kotlin.math.roundToLong
+
+internal const val TOOLBAR_ZOOM_FACTOR = 1.15
+internal const val CONTINUOUS_ZOOM_REPEAT_DELAY_MS = 90.0
 
 internal data class ViewportTransformState(
     val scale: Double,
@@ -71,4 +77,52 @@ internal fun continuousZoomScaleFactor(
     if (!stepIntervalMs.isFinite() || stepIntervalMs <= 0.0) return 1.0
     if (!elapsedMs.isFinite() || elapsedMs <= 0.0) return 1.0
     return stepZoomFactor.pow(elapsedMs / stepIntervalMs)
+}
+
+internal fun homeReturnSegmentDurationMs(
+    startScale: Double,
+    targetScale: Double,
+    fallbackDurationMs: Long
+): Long {
+    if (!startScale.isFinite() || startScale <= 0.0) return fallbackDurationMs
+    if (!targetScale.isFinite() || targetScale <= 0.0) return fallbackDurationMs
+
+    val scaleRatio = targetScale / startScale
+    if (abs(scaleRatio - 1.0) <= 1e-9) return fallbackDurationMs
+
+    val stepZoomFactor = if (scaleRatio < 1.0) {
+        1.0 / TOOLBAR_ZOOM_FACTOR
+    } else {
+        TOOLBAR_ZOOM_FACTOR
+    }
+    val durationMs = CONTINUOUS_ZOOM_REPEAT_DELAY_MS * (ln(scaleRatio) / ln(stepZoomFactor))
+    if (!durationMs.isFinite()) return fallbackDurationMs
+
+    return max(CONTINUOUS_ZOOM_REPEAT_DELAY_MS, durationMs).roundToLong()
+}
+
+internal fun interpolateViewportState(
+    start: ViewportTransformState,
+    end: ViewportTransformState,
+    fraction: Float
+): ViewportTransformState {
+    val clampedFraction = fraction.coerceIn(0f, 1f).toDouble()
+    val interpolatedScale = if (
+        start.scale.isFinite() && start.scale > 0.0 &&
+        end.scale.isFinite() && end.scale > 0.0
+    ) {
+        start.scale * (end.scale / start.scale).pow(clampedFraction)
+    } else {
+        interpolateDouble(start.scale, end.scale, clampedFraction)
+    }
+
+    return ViewportTransformState(
+        scale = interpolatedScale,
+        offsetX = interpolateDouble(start.offsetX, end.offsetX, clampedFraction),
+        offsetY = interpolateDouble(start.offsetY, end.offsetY, clampedFraction)
+    )
+}
+
+private fun interpolateDouble(start: Double, end: Double, fraction: Double): Double {
+    return start + ((end - start) * fraction)
 }

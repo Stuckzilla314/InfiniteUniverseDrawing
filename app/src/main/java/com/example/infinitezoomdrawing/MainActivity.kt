@@ -31,9 +31,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val DEFAULT_TOOLS_EXPANDED = false
-        private const val TOOLBAR_ZOOM_FACTOR = 1.15
         private const val CONTINUOUS_ZOOM_INITIAL_DELAY_MS = 220L
-        private const val CONTINUOUS_ZOOM_REPEAT_DELAY_MS = 90L
     }
 
     private lateinit var binding: ActivityMainBinding
@@ -258,7 +256,7 @@ class MainActivity : AppCompatActivity() {
                     binding.drawingView.zoomBy(
                         continuousZoomScaleFactor(
                             stepZoomFactor = zoomFactor,
-                            stepIntervalMs = CONTINUOUS_ZOOM_REPEAT_DELAY_MS.toDouble(),
+                            stepIntervalMs = CONTINUOUS_ZOOM_REPEAT_DELAY_MS,
                             elapsedMs = elapsedMs
                         )
                     )

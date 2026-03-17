@@ -107,4 +107,22 @@ class ViewportNavigationTest {
 
         assertEquals(1.0 / 1.15, zoomOutFactor, 1e-9)
     }
+
+    @Test
+    fun homeReturnSegmentDurationMs_matchesToolbarZoomOutRateAcrossScaleRatio() {
+        assertEquals(180L, homeReturnSegmentDurationMs(startScale = 4.0, targetScale = 4.0 / (1.15 * 1.15), fallbackDurationMs = 650L))
+    }
+
+    @Test
+    fun interpolateViewportState_scalesGeometricallyAtMidpoint() {
+        val midpoint = interpolateViewportState(
+            start = ViewportTransformState(scale = 4.0, offsetX = 200.0, offsetY = 100.0),
+            end = ViewportTransformState(scale = 4.0 / (1.15 * 1.15), offsetX = 20.0, offsetY = 10.0),
+            fraction = 0.5f
+        )
+
+        assertEquals(4.0 / 1.15, midpoint.scale, 1e-9)
+        assertEquals(110.0, midpoint.offsetX, 1e-9)
+        assertEquals(55.0, midpoint.offsetY, 1e-9)
+    }
 }

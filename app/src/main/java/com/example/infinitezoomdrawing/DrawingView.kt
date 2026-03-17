@@ -18,7 +18,7 @@ import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.ViewConfiguration
-import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.animation.LinearInterpolator
 
 /**
  * Custom view that provides a drawing canvas with support for multiple brush types,
@@ -292,19 +292,24 @@ class DrawingView @JvmOverloads constructor(
     ) {
         val targetState = targets[index]
         val isFinalSegment = index == targets.lastIndex
+        val fallbackDuration = if (isFinalSegment) {
+            HOME_RETURN_FINAL_SEGMENT_DURATION_MS
+        } else {
+            HOME_RETURN_SEGMENT_DURATION_MS
+        }
         val animator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = if (isFinalSegment) {
-                HOME_RETURN_FINAL_SEGMENT_DURATION_MS
-            } else {
-                HOME_RETURN_SEGMENT_DURATION_MS
-            }
-            interpolator = AccelerateDecelerateInterpolator()
+            duration = homeReturnSegmentDurationMs(startState.scale, targetState.scale, fallbackDuration)
+            interpolator = LinearInterpolator()
             addUpdateListener { valueAnimator ->
-                val fraction = valueAnimator.animatedValue as Float
+                val interpolatedState = interpolateViewportState(
+                    start = startState,
+                    end = targetState,
+                    fraction = valueAnimator.animatedValue as Float
+                )
                 applyViewportTransform(
-                    scale = lerp(startState.scale, targetState.scale, fraction),
-                    offsetX = lerp(startState.offsetX, targetState.offsetX, fraction),
-                    offsetY = lerp(startState.offsetY, targetState.offsetY, fraction)
+                    scale = interpolatedState.scale,
+                    offsetX = interpolatedState.offsetX,
+                    offsetY = interpolatedState.offsetY
                 )
             }
         }
@@ -329,10 +334,6 @@ class DrawingView @JvmOverloads constructor(
             }
         })
         animator.start()
-    }
-
-    private fun lerp(start: Double, end: Double, fraction: Float): Double {
-        return start + ((end - start) * fraction.toDouble())
     }
 
     fun undo() {
